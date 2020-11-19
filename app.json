@@ -1,0 +1,12 @@
+{
+  "name": "zametki",
+  "displayName": "zametki",
+  "expo": {
+    "name": "zametki",
+    "slug": "zametki",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
