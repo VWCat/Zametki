@@ -2,24 +2,22 @@ import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, FlatList, Image
 import ActionSheet from "react-native-actions-sheet";
 import React, { createRef, useState } from "react";
 import { connect } from 'react-redux';
-import { setTitle } from '../actions/testAction';
 import { addData, removeData } from '../actions/dataAction';
 import moment from 'moment'; 
 import { CheckBox } from 'react-native-elements';
-//var now = moment().format();
 
 const actionSheetRef = createRef();
-var itemNumber: number;
 
-const Item = ({ title, index, body, createDate, editDate, navigation, url, isChecking, setTitleAction }:any) => (
+const Item = ({ title, index, body, createDate, editDate, navigation, url, isChecking, isItemCheck, onPressCheck, onLongPress }:any) => (
   isChecking
-    ? <CheckBox checked={false} textStyle={styles.title} title={title} containerStyle={styles.item} />
+    ? <CheckBox checked={isItemCheck} textStyle={styles.title} title={title} containerStyle={styles.item} 
+      onPress={onPressCheck}
+    />
     : <TouchableOpacity 
         style={styles.item} 
-        onLongPress={() => {itemNumber = index, actionSheetRef.current?.setModalVisible()}}
+        onLongPress={onLongPress}
         onPress={() => {
           navigation.navigate('ViewEdit', {
-            //name: title,
             title: title,
             body: body,
             index: index,
@@ -31,59 +29,73 @@ const Item = ({ title, index, body, createDate, editDate, navigation, url, isChe
         }}
       >
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
+        <Text style={styles.textData}>{createDate}</Text>
       </TouchableOpacity>
 );
 
-const mapStateToHomeScreenProps = (store: { test: { title: any; }; data: { data: any; }; }) => { 
+const mapStateToHomeScreenProps = (store: { data: { data: any; }; }) => { 
   
   return {
-    title: store.test.title,
     data: store.data.data,
   }
 };
 
 const mapDispatchToHomeScreenProps = (dispatch: (arg0: { type: string; payload: any; }) => any) => {
   return {
-    setTitleAction: (title: string) => dispatch(setTitle(title)),
     addDataAction: (title:string, body:string, createDate:Date, editDate:Date, url:string, index:number) => dispatch(addData(title, body, createDate, editDate, url, index)),
     removeDataAction: (id:number) => dispatch(removeData(id)),
   }
 }
 
-const HomeScreen = ({navigation, title, data, setTitleAction, addDataAction, removeDataAction}:any) => {
-  const [isChecking, setIsChecking] = useState(false)
+const HomeScreen = ({navigation, data, removeDataAction}:any) => {
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkedArr, setCheckedArr] = useState([]);
+  const [currentItem, setCurrentItem] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(null);
+
+  const isItemCheck = (index:number) => {
+    if (checkedArr.indexOf(index)==-1) {return false} else {return true}
+  }
+
+  const changeItemCheckedStatus = (index:number) => {
+    let id = checkedArr.indexOf(index);
+    let newArr = checkedArr.slice();
+    if (id==-1) {newArr.push(index)} else {newArr.splice(id, 1)};
+    setCheckedArr(newArr.sort((a, b) => b - a));
+  }
+
   const renderItem = ({ item, index}:any) => (
     <Item title={item.title}
     navigation={navigation}
-    setTitleAction={setTitleAction}
     body={item.body}
     index={index}
     createDate={item.createDate}
     editDate={item.editDate}
     url={item.url}
     isChecking={isChecking}
+    onPressCheck={()=>changeItemCheckedStatus(index)}
+    onLongPress={()=> {
+      setCurrentItem(item);
+      setCurrentIndex(index)
+      actionSheetRef.current?.setModalVisible();
+      
+    }}
+    isItemCheck={isItemCheck(index)}
     />
   );
   navigation.setOptions({
     headerRight: () => (
       isChecking 
       ? <Button 
-          onPress={() => navigation.navigate('ViewEdit', {
-            //name: 'Новая заметка',
-            title: 'Новая заметка',
-            body: '',
-            index: data.length,
-            createDate: moment().format("DD.MM.YYYY"),
-            editDate: moment().format("DD.MM.YYYY"),
-            url: '',
-            isEdit: true
-          })} 
-          //onPress={() => navigation.navigate('ViewEdit')}
+          onPress={() => {
+            checkedArr.forEach((index) => removeDataAction(index));
+            setCheckedArr([]);
+            setIsChecking(false);
+          }} 
           title="Удалить" 
         />
       : <Button 
           onPress={() => navigation.navigate('ViewEdit', {
-            //name: 'Новая заметка',
             title: 'Новая заметка',
             body: '',
             index: data.length,
@@ -92,85 +104,89 @@ const HomeScreen = ({navigation, title, data, setTitleAction, addDataAction, rem
             url: '',
             isEdit: true
           })} 
-          //onPress={() => navigation.navigate('ViewEdit')}
           title="Создать" 
         />
     ),
     headerLeft: () => (
       isChecking&&<Button 
-          onPress={() => setIsChecking(false)} 
+          onPress={() => {setIsChecking(false); setCheckedArr([])}} 
           title="Отмена" 
         />
     )
   });
-  //let actionSheet;
   
   return (
     <SafeAreaView style={styles.container}>
-    {/* <TouchableOpacity style={styles.menuItem}><Text>{title}</Text></TouchableOpacity> */}
     <FlatList
       data={data}
       renderItem={renderItem}
       keyExtractor={(item, index) => item.title + index}
       extraData={(index: any) => index}
-      //columnWrapperStyle={styles.flatlist}
-      //numColumns={2}
     />
-    <TouchableOpacity style={styles.buttonAdd} 
-    //onPress={() => navigation.navigate('Edit')}
-    onPress={() => addDataAction((data.length + 1) + ' Item','Body of '+(data.length + 1)+' Item')}
-    //onPress={() => setTitleAction('Some title')}
-    >
-      <Image style={styles.buttonAddImage} source={require('../../icon/add.png')} />
-    </TouchableOpacity>
     <ActionSheet ref={actionSheetRef} containerStyle={styles.menu}>
-      <View>
         <TouchableOpacity style={[styles.menuItem,{borderBottomWidth: 1}]}
           onPress={() => {setIsChecking(true), actionSheetRef.current?.setModalVisible(false)}}
         >
           <Text style={styles.menuText}>Выбрать несколько</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.menuItem,{borderBottomWidth: 1}]}><Text style={styles.menuText}>Редактировать</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.menuItem,{borderBottomWidth: 1}]}
+          onPress={() => {navigation.navigate('ViewEdit', {
+            title: currentItem.title,
+            body: currentItem.body,
+            index: currentIndex,
+            createDate: currentItem.createDate,
+            editDate: currentItem.editDate,
+            url: currentItem.url,
+            isEdit: true
+          });
+           actionSheetRef.current?.setModalVisible(false)}}
+        >
+          <Text style={styles.menuText}>Редактировать</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem}
-          onPress={() => {removeDataAction(itemNumber), actionSheetRef.current?.setModalVisible(false)}
+          onPress={() => {removeDataAction(currentIndex), actionSheetRef.current?.setModalVisible(false)}
           }
         >
           <Text style={styles.menuText}>Удалить</Text>
         </TouchableOpacity>
-      </View>
     </ActionSheet>
   </SafeAreaView> 
   );
 };
-
-
-
   
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   item: {
-    //flex: 0.5,
-    backgroundColor: '#f9c2ff',
-    padding: 20,
+    backgroundColor: '#fff',
+    elevation:3,
+    shadowColor: "#000",
+    shadowOffset: {
+	    width: 0,
+	    height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    paddingHorizontal:10,
+    paddingTop:20,
+    paddingBottom:10,
     marginVertical: 8,
     marginHorizontal: 16,
     borderRadius: 10,
-    flexDirection: 'row',
-    //justifyContent: 'space-between',
   },
   flatlist: {
     justifyContent: 'flex-start',
-    //width: '100%',
   },
   title: {
-    //flex:1,
-    fontSize: 32,
-    fontWeight: 'normal',
-    
-    //textAlignVertical: 'auto',
+    fontWeight:'normal',
+    fontSize: 24,
+  },
+  textData: {
+    marginTop:8,
+    fontSize: 12,
+    color:'grey',
+    textAlign:'right'
   },
   buttonAdd: {
     position: 'absolute',
@@ -195,9 +211,6 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     height: 50,
-    // borderWidth: 1,
-    // borderRadius: 5,
-    // margin: 10,
     alignItems: 'center',
     justifyContent:'center',
   },
@@ -205,6 +218,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
   }
 });
-export default connect(mapStateToHomeScreenProps, mapDispatchToHomeScreenProps)(HomeScreen);
 
-// export default HomeScreen
+export default connect(mapStateToHomeScreenProps, mapDispatchToHomeScreenProps)(HomeScreen);

@@ -18,8 +18,6 @@ export function dataReducer(state = initialState, action:any) {
                     action.payload,
                     ...state.data.slice(action.index+1),
                 ]
-                //data: state.data.concat(action.payload)
-                //data: [...state.data, action.payload]
             };
         
         case REMOVE_DATA:
